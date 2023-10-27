@@ -38,5 +38,6 @@ RUN pip install -r requirements.txt
 
 # # define the port number the container should expose
 EXPOSE 8080
+EXPOSE 5678
 
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8080", "--debug" ]
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8080"]

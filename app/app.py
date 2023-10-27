@@ -3,8 +3,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
 from importer import create_model_from_url, get_random_instance
+import debugpy
+
+debugpy.listen(("0.0.0.0", 5678))
+
+
 
 app = Flask(__name__)
+
+
 
 
 @app.get("/")
@@ -22,4 +29,5 @@ def create_model():
 
 @app.get("/models/<uuid:model_id>")
 def get_model(model_id):
-    return get_random_instance(model_id)
+    inst = request.args.get("inst")
+    return get_random_instance(model_id, inst=inst)
