@@ -43,7 +43,10 @@ def get_random_instance(model_id: UUID) -> str:
     
     # import, create random inst and return json str
     from model import Pet
-    return ModelFactory.create_factory(Pet).build().model_dump_json(indent=2)
+    factory = ModelFactory.create_factory(Pet)
+    factory.__allow_none_optionals__ = False
+    inst = factory.build()
+    return inst.model_dump_json(indent=2)
 
 
 def store_model(model: str) -> str:
