@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "random-api"
+version = "0.1.0"
+description = "Generates Random structured data"
+authors = ["Morgan Baron <morgan@unlisted.org>"]
+readme = "README.md"
+packages = [{include = "random_api"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Flask = "^3.0.0"
+pydantic = "^2.4.2"
+SQLAlchemy = "^2.0.22"
+uvicorn = "^0.23.2"
+datamodel-code-generator = {extras = ["http"], version = "^0.22.1"}
+psycopg2-binary = "^2.9.9"
+polyfactory = "^2.11.0"
+
+
+[tool.poetry.group.dev.dependencies]
+ipython = "^8.16.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
