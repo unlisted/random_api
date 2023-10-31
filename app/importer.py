@@ -4,9 +4,6 @@ from datamodel_code_generator.__main__ import main
 from importlib import machinery
 import sys
 from polyfactory.factories.pydantic_factory import ModelFactory
-import json
-import subprocess
-from db import retrieve_model, store_model
 from uuid import UUID, uuid4
 from inspect import getmembers
 import inspect
@@ -15,11 +12,12 @@ from pydantic import create_model
 from typing import Any, Generic, TypeVar
 from pydantic import BaseModel
 from google.cloud import datastore
+from google.cloud.datastore.query import PropertyFilter
 import logging
 import sys
 from config import settings
 
-from exceptions import ModelNotFoundError
+from exceptions import ModelNotFound, RegistrationFailed
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +33,13 @@ def create_model_from_url(url) -> str:
     output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py"
     
     main(["--url", url, "--input-file-type", "openapi", "--output", str(output_path), "--output-model-type", "pydantic_v2.BaseModel"])
+    if not output_path.exists():
+        raise RegistrationFailed(spec_id)
     with open(str(output_path)) as f:
         model_str = f.read()
 
     key = datastore_client.key(KIND, spec_id)
-    entity = datastore.Entity(key=key)
+    entity = datastore_client.entity(key=key, exclude_from_indexes=(("model",)))
     entity.update({"model": model_str, "model_id": spec_id})
     datastore_client.put(entity)
     return spec_id
@@ -57,20 +57,19 @@ def get_random_instance(spec_id: str, models: list[str] = []) -> dict:
     try:
         #TODO: just check for existence here
         module = __import__(spec_id)
-        
     except ModuleNotFoundError:
         logger.info(f"{spec_id} not found in local filesystem, checking datastore.")
 
         # get the model from datastore
         query = datastore_client.query(kind=KIND)
-        query.add_filter("model_id", "=", spec_id)
+        query.add_filter(filter=PropertyFilter("model_id", "=", spec_id))
         results = query.fetch()
         try:
             model = next(results)
             model_str = model["model"]
         except StopIteration:
             logger.exception(f"{spec_id} not found in datastore.")
-            raise ModelNotFoundError(model_id=spec_id)
+            raise ModelNotFound(model_id=spec_id)
         else:
             # write the model to fs
             output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py" 
