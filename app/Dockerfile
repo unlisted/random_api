@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM --platform=$BUILDPLATFORM python:3.10-alpine AS builder
+FROM python:3.10-alpine AS builder
 
 # upgrade pip
 RUN pip install --upgrade pip
@@ -31,13 +31,14 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 # install poetry
 # RUN curl -sSL https://install.python-poetry.org | POETRY_HOME="$HOME/poetry" python3 -
 
-ENV export PATH="$VIRTUAL_ENV/bin:$HOME/.cargo/bin:$PATH"
+ENV PATH="$VIRTUAL_ENV/bin:$HOME/.cargo/bin:$PATH"
+# ENV GOOGLE_APPLICATION_CREDENTIALS=./project-cheese-party-555-e8aa1a81a045.json
 RUN export FLASK_APP=app.py
 RUN pip install -r requirements.txt
 # RUN poetry install
 
 # # define the port number the container should expose
 EXPOSE 8080
-EXPOSE 5678
+# EXPOSE 5678
 
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8080"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "--workers", "2", "app:app"]

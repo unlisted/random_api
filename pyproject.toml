@@ -11,11 +11,13 @@ python = "^3.10"
 Flask = "^3.0.0"
 pydantic = "^2.4.2"
 SQLAlchemy = "^2.0.22"
-uvicorn = "^0.23.2"
 datamodel-code-generator = {extras = ["http"], version = "^0.22.1"}
 psycopg2-binary = "^2.9.9"
 polyfactory = "^2.11.0"
 debugpy = "^1.8.0"
+gunicorn = "^21.2.0"
+google-cloud-datastore = "^2.18.0"
+pydantic-settings = "^2.0.3"
 
 
 [tool.poetry.group.dev.dependencies]

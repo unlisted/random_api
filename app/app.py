@@ -1,33 +1,32 @@
-from flask import Flask, Response, request
+from flask import Flask, Response, request, make_response
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
 from importer import create_model_from_url, get_random_instance
 import debugpy
+import os 
+from exceptions import ModelNotFoundError
+from config import settings 
 
-debugpy.listen(("0.0.0.0", 5678))
-
-
+if settings.debug:
+    debugpy.listen(("0.0.0.0", 5678))
 
 app = Flask(__name__)
 
 
-
-
-@app.get("/")
-def hello():
-    return Response(response="hi", status=200)
-
-
-@app.post("/models/")
+@app.post("/specs/")
 def create_model():
     request_json = request.get_json()
     url = request_json["url"]
-    rand_instance_json = create_model_from_url(url)
-    return Response(status=200, response=rand_instance_json)
+    spec_id = create_model_from_url(url)
+    return make_response({"spec_id": spec_id})
 
 
-@app.get("/models/<uuid:model_id>")
-def get_model(model_id):
-    inst = request.args.get("inst")
-    return get_random_instance(model_id, inst=inst)
+@app.get("/specs/<string:spec_id>/")
+def get_model(spec_id):
+    models = request.args.getlist("models")
+    try:
+        rand_inst = get_random_instance(spec_id, models=models)
+    except ModelNotFoundError as ex:
+        return Response(response=f"{ex.model_id} not found", status=404)
+    return(make_response(rand_inst))

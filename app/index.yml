@@ -1,0 +1,6 @@
+indexes:
+
+- kind: ModelModule
+  properties:
+  - name: model_id
+  - name: model
