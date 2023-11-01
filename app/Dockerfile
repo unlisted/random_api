@@ -32,7 +32,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 # RUN curl -sSL https://install.python-poetry.org | POETRY_HOME="$HOME/poetry" python3 -
 
 ENV PATH="$VIRTUAL_ENV/bin:$HOME/.cargo/bin:$PATH"
-# ENV GOOGLE_APPLICATION_CREDENTIALS=./project-cheese-party-555-e8aa1a81a045.json
+ENV DEBUG=${DEBUG}
 RUN export FLASK_APP=app.py
 RUN pip install -r requirements.txt
 # RUN poetry install

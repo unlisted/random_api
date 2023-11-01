@@ -28,21 +28,62 @@ KIND = "ModelModule"
 T = TypeVar("T", bound=BaseModel)
 TEMP_MODULE_PATH = tempfile.TemporaryDirectory()
 
+def patterned_field_fixup(model_str: str) -> str:
+    # This is a very specific fix for Canopy specs that use patterned fields.
+    return model_str.replace("pattern='^(?!can_).*$',", "")
+
+
 def create_model_from_url(url) -> str:
     spec_id = uuid4().hex
     output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py"
     
-    main(["--url", url, "--input-file-type", "openapi", "--output", str(output_path), "--output-model-type", "pydantic_v2.BaseModel"])
+    main(["--url", url, "--input-file-type", "openapi", "--output", str(output_path), "--output-model-type", "pydantic_v2.BaseModel", "--use-annotated"])
     if not output_path.exists():
         raise RegistrationFailed(spec_id)
     with open(str(output_path)) as f:
         model_str = f.read()
 
+    fixed = patterned_field_fixup(model_str)
+    if fixed != model_str:
+        with open(str(output_path), "w") as f:
+            f.write(fixed)
+    
     key = datastore_client.key(KIND, spec_id)
     entity = datastore_client.entity(key=key, exclude_from_indexes=(("model",)))
-    entity.update({"model": model_str, "model_id": spec_id})
+    entity.update({"model": fixed, "model_id": spec_id})
     datastore_client.put(entity)
     return spec_id
+
+
+def get_model_list(spec_id: str) -> list[str]:
+    _add_finder(TEMP_MODULE_PATH.name)
+    try:
+        #TODO: just check for existence here
+        module = __import__(spec_id)
+    except ModuleNotFoundError:
+        logger.info(f"{spec_id} not found in local filesystem, checking datastore.")
+
+        # get the model from datastore
+        query = datastore_client.query(kind=KIND)
+        query.add_filter(filter=PropertyFilter("model_id", "=", spec_id))
+        results = query.fetch()
+        try:
+            model = next(results)
+            model_str = model["model"]
+        except StopIteration:
+            logger.exception(f"{spec_id} not found in datastore.")
+            raise ModelNotFound(model_id=spec_id)
+        else:
+            # write the model to fs 
+            output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py" 
+            with open(str(output_path), "w") as f:
+                f.write(model_str)
+            
+            module = __import__(spec_id)
+    
+    # get all the classes defined in this module
+    members = (getmembers(module, inspect.isclass))
+    return [x[0] for x in members if x[1].__module__ == spec_id]
 
 
 def get_random_instance(spec_id: str, models: list[str] = []) -> dict:

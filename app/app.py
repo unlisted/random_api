@@ -1,6 +1,6 @@
 from flask import Flask, request, Response
 from uuid import uuid4
-from importer import create_model_from_url, get_random_instance
+from importer import create_model_from_url, get_random_instance, get_model_list
 import debugpy
 from exceptions import ModelNotFound, RegistrationFailed
 from config import settings 
@@ -50,6 +50,15 @@ def get_model(spec_id):
     
     updated_token = update_token(token_id, token, RequestType.GENERATION, 1)
     return {"data": rand_inst, "request_token": updated_token}
+
+
+@app.get("/specs/<string:spec_id>/models/")
+def get_models(spec_id):
+    try:
+        models = get_model_list(spec_id)
+    except ModelNotFound as ex:
+        return Response(f"{ex.model_id} not found", 404)
+    return {"models": models}
 
 
 app.make_response
