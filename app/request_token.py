@@ -1,7 +1,7 @@
 from google.cloud import datastore
 from google.cloud.datastore import Entity
 from enum import Enum
-from exceptions import TokenNotFound
+from app.exceptions import TokenNotFound
 
 class RequestType(str, Enum):
     REGISTRATION = "registration"

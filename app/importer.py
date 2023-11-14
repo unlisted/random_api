@@ -15,9 +15,9 @@ from google.cloud import datastore
 from google.cloud.datastore.query import PropertyFilter
 import logging
 import sys
-from config import settings
+from app.config import settings
 
-from exceptions import ModelNotFound, RegistrationFailed
+from app.exceptions import ModelNotFound, RegistrationFailed
 
 logger = logging.getLogger(__name__)
 

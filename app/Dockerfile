@@ -28,17 +28,14 @@ RUN python -m venv $VIRTUAL_ENV
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
-# install poetry
-# RUN curl -sSL https://install.python-poetry.org | POETRY_HOME="$HOME/poetry" python3 -
 
 ENV PATH="$VIRTUAL_ENV/bin:$HOME/.cargo/bin:$PATH"
 ENV DEBUG=${DEBUG}
 RUN export FLASK_APP=app.py
 RUN pip install -r requirements.txt
-# RUN poetry install
 
 # # define the port number the container should expose
 EXPOSE 8080
-# EXPOSE 5678
+EXPOSE 5678
 
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "--workers", "2", "app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "--workers", "2", "main:app"]
