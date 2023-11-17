@@ -1,10 +1,11 @@
 from flask import Flask, request, Response
 from uuid import uuid4
 from app.importer import create_model_from_url, get_random_instance, get_model_list
-import debugpy
+import debugpy # type: ignore
 from app.exceptions import ModelNotFound, RegistrationFailed, TokenNotFound
 from app.config import settings 
 from app.request_token import retrieve_token, RequestType, valid_request, update_token
+from app.persistor import DatastorePersistor
 
 if settings.debug:
     debugpy.listen(("0.0.0.0", 5678))
@@ -13,6 +14,8 @@ app = Flask(__name__)
 
 @app.before_request
 def validate_token():
+    if not settings.enable_token:
+        return None
     if not request.endpoint in ["create_model", "get_model"]:
         return None
     token_id = request.headers.get("X-Request-Token", type=int)
@@ -25,6 +28,8 @@ def validate_token():
 
 @app.after_request
 def process_token(response: Response):
+    if not settings.enable_token:
+        return response
     if not request.endpoint in ["create_model", "get_model"]:
         return response
 
@@ -54,7 +59,7 @@ def create_model():
     request_json = request.get_json()
     url = request_json["url"]
     try:
-        spec_id = create_model_from_url(url)
+        spec_id = create_model_from_url(url, DatastorePersistor())
     except RegistrationFailed:
         return Response(200, "registration failed, try another url.")
     
@@ -65,7 +70,7 @@ def create_model():
 def get_model(spec_id):    
     models = request.args.getlist("models")
     try:
-        rand_inst = get_random_instance(spec_id, models=models)
+        rand_inst = get_random_instance(spec_id, DatastorePersistor(), models=models)
     except ModelNotFound as ex:
         return Response(f"{ex.model_id} not found", 404)
     

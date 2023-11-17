@@ -1,12 +1,13 @@
 from uuid import UUID, uuid4
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
-from models import Base, RenderedModel
+from app.models import Base, RenderedModel
+from app.config import settings
 
-# engine = create_engine("postgresql+psycopg2://test:test@postgres:5432/test", echo=True)
-# Base.metadata.create_all(engine)
+engine = create_engine(settings.database_url, echo=True)
+Base.metadata.create_all(engine)
 
-# Session = sessionmaker(engine)
+Session = sessionmaker(engine)
 
 
 def store_model(model: str) -> str:

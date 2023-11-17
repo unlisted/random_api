@@ -18,6 +18,7 @@ import sys
 from app.config import settings
 
 from app.exceptions import ModelNotFound, RegistrationFailed
+from app.persistor import BasePersistor
 
 logger = logging.getLogger(__name__)
 
@@ -33,25 +34,20 @@ def patterned_field_fixup(model_str: str) -> str:
     return model_str.replace("pattern='^(?!can_).*$',", "")
 
 
-def create_model_from_url(url) -> str:
+def create_model_from_url(url, persistor: BasePersistor) -> str:
     spec_id = uuid4().hex
     output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py"
     
     main(["--url", url, "--input-file-type", "openapi", "--output", str(output_path), "--output-model-type", "pydantic_v2.BaseModel", "--use-annotated"])
     if not output_path.exists():
         raise RegistrationFailed(spec_id)
-    with open(str(output_path)) as f:
-        model_str = f.read()
+    model_str = output_path.read_text()
 
-    fixed = patterned_field_fixup(model_str)
-    if fixed != model_str:
-        with open(str(output_path), "w") as f:
-            f.write(fixed)
+    fixed_model_str = patterned_field_fixup(model_str)
+    if fixed_model_str != model_str:
+        output_path.write_text(fixed_model_str)
     
-    key = datastore_client.key(KIND, spec_id)
-    entity = datastore_client.entity(key=key, exclude_from_indexes=(("model",)))
-    entity.update({"model": fixed, "model_id": spec_id})
-    datastore_client.put(entity)
+    persistor.write(spec_id, fixed_model_str)
     return spec_id
 
 
@@ -86,7 +82,7 @@ def get_model_list(spec_id: str) -> list[str]:
     return [x[0] for x in members if x[1].__module__ == spec_id]
 
 
-def get_random_instance(spec_id: str, models: list[str] = []) -> dict:
+def get_random_instance(spec_id: str, reader: BasePersistor, models: list[str] = []) -> dict:
     # to allow_none_optional False on all dynmically created instances
     class MyModelFactory(Generic[T], ModelFactory[T]):
         __is_base_factory__ = True
@@ -94,35 +90,28 @@ def get_random_instance(spec_id: str, models: list[str] = []) -> dict:
         def __init_subclass__(cls, *args: Any, **kwargs: Any) -> None:
             super().__init_subclass__(*args, **kwargs)
     
+    # add customer importer finder that searches the temp dir for modules
     _add_finder(TEMP_MODULE_PATH.name)
     try:
         #TODO: just check for existence here
+        # import from local path if exists
         module = __import__(spec_id)
     except ModuleNotFoundError:
         logger.info(f"{spec_id} not found in local filesystem, checking datastore.")
+        model_str = reader.read(spec_id)
+        
+        # write the model to fs
+        output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py" 
+        output_path.write_text(model_str)
 
-        # get the model from datastore
-        query = datastore_client.query(kind=KIND)
-        query.add_filter(filter=PropertyFilter("model_id", "=", spec_id))
-        results = query.fetch()
-        try:
-            model = next(results)
-            model_str = model["model"]
-        except StopIteration:
-            logger.exception(f"{spec_id} not found in datastore.")
-            raise ModelNotFound(model_id=spec_id)
-        else:
-            # write the model to fs
-            output_path = Path(TEMP_MODULE_PATH.name) / f"{spec_id}.py" 
-            with open(str(output_path), "w") as f:
-                f.write(model_str)
-            
-            module = __import__(spec_id)
+        # then import it
+        module = __import__(spec_id)
+
 
     # get all the classes defined in this module
     members = (getmembers(module, inspect.isclass))
-    target_models = [x.lower() for x in models]
     if models:
+        target_models = [x.lower() for x in models]
         clzs = [x[1] for x in members if x[1].__module__ == spec_id and x[0].lower() in target_models]
     else:
         clzs = [x[1] for x in members if x[1].__module__ == spec_id]
@@ -131,8 +120,8 @@ def get_random_instance(spec_id: str, models: list[str] = []) -> dict:
         return {}
     
     # create the Pydantic model that returns  the results, easier to serialize this way
-    kwargs = {x.__name__:(x, ...) for x in clzs}
-    ResultsModel = create_model("ResultsModel", **kwargs)
+    field_definitions = {x.__name__:(x, ...) for x in clzs}
+    ResultsModel = create_model("ResultsModel", **field_definitions) # type: ignore
 
     # use polyfactory to generate random data for imported models
     rand_data_instences = {}
