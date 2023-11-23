@@ -13,7 +13,7 @@ RUN mkdir /home/app/ && chown -R nonroot:nonroot /home/app
 RUN mkdir /home/app/app/ && chown -R nonroot:nonroot /home/app/app
 RUN mkdir -p /var/log/flask-app && touch /var/log/flask-app/flask-app.err.log && touch /var/log/flask-app/flask-app.out.log
 RUN chown -R nonroot:nonroot /var/log/flask-app
-WORKDIR /home/app/app
+WORKDIR /home/app
 USER nonroot
 
 # copy all the files to the container
@@ -37,14 +37,12 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV HOME=/home/app
 ENV PATH="$VIRTUAL_ENV/bin:$HOME/.cargo/bin:$POETRY_HOME/bin:$PATH"
 ENV DEBUG=${DEBUG}
+
 RUN export FLASK_APP=app.py
-# RUN pip install -r requirements.txt
-RUN echo "$PATH"
 RUN poetry install
 
-# # define the port number the container should expose
+# define the port number the container should expose
 EXPOSE 8080
 EXPOSE 5678
 
-WORKDIR /home/app/
 CMD ["gunicorn", "-b", "0.0.0.0:8080", "--workers", "2", "app.main:app"]

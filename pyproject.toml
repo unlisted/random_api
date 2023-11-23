@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Generates Random structured data"
 authors = ["Morgan Baron <morgan@unlisted.org>"]
 readme = "README.md"
-packages = [{include = "random_api"}]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
